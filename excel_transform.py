@@ -8,13 +8,13 @@ import openpyxl
 import os
 import warnings
 
-import config_params as cfg
-import excel_to_list as el
-import excel_to_dict as ed
+from excel_to_list import ExcelToList
+from excel_to_dict import ExcelToDict
+from config_params import ConfigParams
 
 
-def excel_transform_to_txt(name_of_file):
-    print("Transform to txt. File to parse:", name_of_file)
+def excel_transform_to_txt(name_of_file: str, UvedFileName: str, SvodFileName: str, el: ExcelToList):
+    print("Transform to txt.\n File to parse:", name_of_file)
 
     warnings.simplefilter("ignore")
     workbook = openpyxl.load_workbook(name_of_file, data_only=True)
@@ -23,7 +23,7 @@ def excel_transform_to_txt(name_of_file):
     list_p = el.uved_list_p(workbook)
     list_t2 = el.uved_list_t2(workbook)
 
-    path_name = os.path.join(os.path.curdir, cfg.UvedFileName)
+    path_name = os.path.join(os.path.curdir, UvedFileName)
     with open(path_name, 'w', encoding='utf_8') as uved_file:
         uved_file.writelines(list_d)
         uved_file.writelines(list_np)
@@ -37,7 +37,7 @@ def excel_transform_to_txt(name_of_file):
     list_t1 = el.svod_list_t1(workbook)
     list_t2 = el.svod_list_t2(workbook)
 
-    path_name = os.path.join(os.path.curdir, cfg.SvodFileName)
+    path_name = os.path.join(os.path.curdir, SvodFileName)
     with open(path_name, 'w', encoding='utf_8') as svod_file:
         svod_file.writelines(list_d)
         svod_file.writelines(list_np)
@@ -51,14 +51,8 @@ def excel_transform_to_txt(name_of_file):
     print("ExcelTransform to txt files finshed")
 
 
-def gen_file_name(prm) -> str:
-    strtoday = date.today().strftime('%Y%m%d')
-    id = str(uuid.uuid4()).replace('-', '')
-    return prm + "_9972_9972_7736050003997250001_" + strtoday + "_" + id
-
-
-def excel_transform_to_xml(name_of_file):
-    print("Transform to xml. File to parse:", name_of_file)
+def excel_transform_to_xml(name_of_file: str, xml_file_name: str, ed: ExcelToDict):
+    print("Transform to xml.\n File to parse:", name_of_file)
 
     warnings.simplefilter("ignore")
     workbook = openpyxl.load_workbook(name_of_file, data_only=True)
@@ -68,7 +62,6 @@ def excel_transform_to_xml(name_of_file):
     dict_p = ed.uved_dict_p(workbook)[0]
     list_dict_t2 = ed.uved_dict_t2(workbook)
 
-    xml_file_name = gen_file_name("ON_UVUCHMGR")
     attr = {'ИдФайл': xml_file_name, 'ВерсФорм': dict_d['verForm'], 'ВерсПрог': dict_d['verProg']}
     root = ET.Element("Файл", attr)
     attr = {'КНД': dict_d['KND'], 'КодНО': dict_d['KodNO'], 'НомКор': dict_d['NumKor'],
@@ -264,13 +257,13 @@ def excel_transform_to_xml(name_of_file):
                 if dict_t1['StrNalRezid'] != 'RU':
                     attr['НомНП'] = dict_t2['NomNP']
                 elif dict_t2['PrUchMg'] == '3' and dict_t2['NomNP']:
-                     attr['НомНП'] = dict_t2['NomNP']
+                    attr['НомНП'] = dict_t2['NomNP']
                 attr['НаимУч'] = dict_t2['NameUch']
                 attr['СтатУчМГ'] = dict_t2['StatUchMg']
                 attr['ПрУчМГ'] = dict_t2['PrUchMg']
                 attr['СтрНалРезид'] = dict_t2['StrNalRezid']
                 attr['СтрНомНП'] = dict_t2['StrNomNP']
-                if dict_t2['RegNom']: #dict_t2['StrRegNom'] == 'RU' and
+                if dict_t2['RegNom']:  # dict_t2['StrRegNom'] == 'RU' and
                     attr['РегНом'] = dict_t2['RegNom']
                 if dict_t2['TypeRegNom']:
                     attr['ТипРегНом'] = dict_t2['TypeRegNom']
@@ -346,16 +339,25 @@ def excel_transform_to_xml(name_of_file):
 
     print("ExcelTransform to xml files finshed")
 
+def gen_file_name(prm: str) -> str:
+    strtoday = date.today().strftime('%Y%m%d')
+    id = str(uuid.uuid4()).replace('-', '')
+    return prm + "_9972_9972_7736050003997250001_" + strtoday + "_" + id
 
 def parse_excel():
     print("ExcelTransform started")
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', help='name of excel file with data')
     parser.add_argument('-xml', action='store_true', help='under construction testing to create xml')
+    parser.add_argument('-ini', action='store_false', help='creates ini-file with offsets in excel file')
 
     args = parser.parse_args()
-    name_of_file = args.filename
-    if not args.xml:
-        excel_transform_to_txt(name_of_file)
+    cfg = ConfigParams()
+    if not args.ini:
+        name_of_file = args.filename
+        if not args.xml:
+            excel_transform_to_txt(name_of_file, cfg.UvedFileName, cfg.SvodFileName, el = ExcelToList(cfg))
+        else:
+            excel_transform_to_xml(name_of_file, xml_file_name = gen_file_name("ON_UVUCHMGR"), ed = ExcelToDict(cfg))
     else:
-        excel_transform_to_xml(name_of_file)
+        cfg.create_ini_file()
